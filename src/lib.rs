@@ -1,6 +1,7 @@
 use proc_macro::{TokenStream, Ident};
 use syn::{ItemFn, FnArg, MetaList, NestedMeta, Lit, Path, Meta};
-use syn::export::ToTokens;
+//use syn::ToTokens;
+use quote::ToTokens;
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
 use anyhow::{anyhow, bail, Context, Result};
