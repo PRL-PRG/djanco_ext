@@ -143,10 +143,10 @@ fn parse_attributes(arguments: TokenStream) -> Result<(Month, Year, Vec<Subset>,
     let year: u32 =
         year.with_context(|| format!("Expected a year to be specified, but none was found."))?;
 
-    println!("month:   {:?}", month);
-    println!("year:    {}",   year);
-    println!("subsets: {:?}", subsets);
-    println!("seed:    {}",   seed);
+    // println!("month:   {:?}", month);
+    // println!("year:    {}",   year);
+    // println!("subsets: {:?}", subsets);
+    // println!("seed:    {}",   seed);
 
     Ok((month, year, subsets, seed))
 }
