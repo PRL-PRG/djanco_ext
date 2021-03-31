@@ -1,9 +1,7 @@
-use proc_macro::{TokenStream, Ident};
-use syn::{ItemFn, FnArg, MetaList, NestedMeta, Lit, Path, Meta};
+use proc_macro::TokenStream;
+use syn::{ItemFn, FnArg, MetaList, NestedMeta, Lit, Meta};
 //use syn::ToTokens;
 use quote::ToTokens;
-use syn::parse::Parser;
-use syn::punctuated::Punctuated;
 use anyhow::{anyhow, bail, Context, Result};
 
 const USAGE: &'static str =
@@ -56,7 +54,7 @@ type Subset = String;
 type Seed = u128;
 
 fn parse_attributes(arguments: TokenStream) -> Result<(Month, Year, Vec<Subset>, Seed)> {
-    let mut attributes: MetaList =
+    let attributes: MetaList =
         syn::parse_str(&format!("_({})", arguments.to_string()))
             .with_context(|| format!("Could not parse argument list: {}", arguments.to_string()))?;
 
@@ -69,8 +67,7 @@ fn parse_attributes(arguments: TokenStream) -> Result<(Month, Year, Vec<Subset>,
     let mut subsets: Vec<Subset> = vec![];
     let mut seed: Seed = 0;
 
-    for mut attribute in attributes.nested {
-        println!("   attrib: {:?}", attribute);
+    for attribute in attributes.nested {
         match attribute {
             NestedMeta::Meta(meta) => {
                 match meta {
@@ -118,7 +115,7 @@ fn parse_attributes(arguments: TokenStream) -> Result<(Month, Year, Vec<Subset>,
                             string => bail!("Unknown attribute {}.", string),
                         }
                     }
-                    Meta::NameValue(name_value) => { unimplemented!() }
+                    Meta::NameValue(_name_value) => { unimplemented!() }
                 }
             }
             NestedMeta::Lit(literal) =>
@@ -141,9 +138,9 @@ fn parse_attributes(arguments: TokenStream) -> Result<(Month, Year, Vec<Subset>,
         }
     }
 
-    let mut month: Month =
+    let month: Month =
         month.with_context(|| format!("Expected a month to be specified, but none was found."))?;
-    let mut year: u32 =
+    let year: u32 =
         year.with_context(|| format!("Expected a year to be specified, but none was found."))?;
 
     println!("month:   {:?}", month);
@@ -155,7 +152,7 @@ fn parse_attributes(arguments: TokenStream) -> Result<(Month, Year, Vec<Subset>,
 }
 
 #[proc_macro_attribute]
-pub fn query(attributes: TokenStream, item: TokenStream) -> TokenStream {
+pub fn djanco(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
     let function: ItemFn = syn::parse(item.clone())
         .expect(&format!("Could not parse function: {}", item.to_string()));
@@ -168,8 +165,8 @@ pub fn query(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
     let arguments: Vec<FnArg> = function.sig.inputs.clone().into_iter().collect();
 
-    if arguments.len() != 2 {
-        panic!("A function tagged as `query` must have 2 arguments, but function `{}` has {}: {:?}",
+    if arguments.len() != 3 {
+        panic!("A function tagged as `query` must have 3 arguments, but function `{}` has {}: {:?}",
                function.sig.ident.to_string(),
                function.sig.inputs.len(),
                function.sig.inputs.to_token_stream().to_string());
@@ -194,7 +191,7 @@ pub fn query(attributes: TokenStream, item: TokenStream) -> TokenStream {
     //     panic!("unexpected!");
     // }
 
-    let (month, year, subsets, seed) =
+    let (_month, _year, _subsets, _seed) =
         parse_attributes(attributes)
             .with_context(|| format!("Problem parsing attribute (cause at the bottom)\n\n{}", USAGE))
             .unwrap();
