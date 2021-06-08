@@ -1,15 +1,16 @@
 use proc_macro::TokenStream;
-use syn::{ItemFn, FnArg, MetaList, NestedMeta, Lit, Meta};
+use syn::{ItemFn, /*FnArg,*/ MetaList, NestedMeta, Lit, Meta};
 //use syn::ToTokens;
 use quote::ToTokens;
 use anyhow::{anyhow, bail, Context, Result};
+use chrono::Datelike;
 
 const USAGE: &'static str =
 "USAGE:\n\
-The `query` attribute must specify at least two arguments indicating the month and the year of the \
-dataset to be used in the query, eg: \n\
+The `query` attribute can specify the month and the year of the dataset to be used in the query, eg:\n\
         \t#[query(May, 2020)]\n\
 \n\
+If a year or a month are not specified, the query will use the current year and/or the current month\n\
 In addition, the attribute tag can also optionally specify which subsets to use, eg: \n\
         \t#[query(May, 2020, subset(\"small projects\"))]\n\
         \t#[query(May, 2020, subsets(\"C\", \"Python\", \"small projects\"))]\n\
@@ -30,7 +31,7 @@ enum Month {
 }
 
 impl Month {
-    pub fn from<S>(string: S) -> Result<Self> where S: Into<String> {
+    pub fn parse<S>(string: S) -> Result<Self> where S: Into<String> {
         match string.into().to_lowercase().as_str() {
             "jan" | "january"   => Ok(Self::January),
             "feb" | "february"  => Ok(Self::February),
@@ -49,6 +50,26 @@ impl Month {
     }
 }
 
+impl From<chrono::Date<chrono::Local>> for Month {
+    fn from(date: chrono::Date<chrono::Local>) -> Self { 
+        match date.month() {
+            1  => Self::January,
+            2  => Self::February,
+            3  => Self::March,
+            4  => Self::April,
+            5  => Self::May,
+            6  => Self::June,
+            7  => Self::July,
+            8  => Self::August,
+            9  => Self::September,
+            10 => Self::October,
+            11 => Self::November,
+            12 => Self::December,
+            n  => panic!("Cannot parse u32 as month: \"{}\"", n),
+        }
+    }   
+}
+
 type Year = u32;
 type Subset = String;
 type Seed = u128;
@@ -58,9 +79,9 @@ fn parse_attributes(arguments: TokenStream) -> Result<(Month, Year, Vec<Subset>,
         syn::parse_str(&format!("_({})", arguments.to_string()))
             .with_context(|| format!("Could not parse argument list: {}", arguments.to_string()))?;
 
-    if attributes.nested.len() < 2 {
-        bail!("Expected at least two arguments, but found {}", attributes.nested.len());
-    }
+    // if attributes.nested.len() < 2 {
+    //     bail!("Expected at least two arguments, but found {}", attributes.nested.len());
+    // }
 
     let mut month: Option<Month> = None;
     let mut year: Option<Year> = None;
@@ -73,8 +94,8 @@ fn parse_attributes(arguments: TokenStream) -> Result<(Month, Year, Vec<Subset>,
                 match meta {
                     Meta::Path(path) => {
                         match path.get_ident().to_token_stream().to_string().as_str() {
-                            string if Month::from(string).is_ok() =>
-                                month = Some(Month::from(string)?),
+                            string if Month::parse(string).is_ok() =>
+                                month = Some(Month::parse(string)?),
                             string => bail!("Unknown attribute {}.", string),
                         }
                     }
@@ -138,10 +159,11 @@ fn parse_attributes(arguments: TokenStream) -> Result<(Month, Year, Vec<Subset>,
         }
     }
 
-    let month: Month =
-        month.with_context(|| format!("Expected a month to be specified, but none was found."))?;
-    let year: u32 =
-        year.with_context(|| format!("Expected a year to be specified, but none was found."))?;
+    let today = chrono::Local::today();
+    let month: Month = month.unwrap_or(Month::from(today));
+        //month.with_context(|| format!("Expected a month to be specified, but none was found."))?;
+    let year: u32 = year.unwrap_or(today.year() as u32);
+        //year.with_context(|| format!("Expected a year to be specified, but none was found."))?;
 
     // println!("month:   {:?}", month);
     // println!("year:    {}",   year);
@@ -163,14 +185,14 @@ pub fn djanco(attributes: TokenStream, item: TokenStream) -> TokenStream {
                function.vis.to_token_stream().to_string());
     }
 
-    let arguments: Vec<FnArg> = function.sig.inputs.clone().into_iter().collect();
+    // let arguments: Vec<FnArg> = function.sig.inputs.clone().into_iter().collect();
 
-    if arguments.len() != 3 {
-        panic!("A function tagged as `query` must have 3 arguments, but function `{}` has {}: {:?}",
-               function.sig.ident.to_string(),
-               function.sig.inputs.len(),
-               function.sig.inputs.to_token_stream().to_string());
-    }
+    // if arguments.len() < 2 {
+    //     panic!("A function tagged as `query` must have 2 arguments, but function `{}` has {}: {:?}",
+    //            function.sig.ident.to_string(),
+    //            function.sig.inputs.len(),
+    //            function.sig.inputs.to_token_stream().to_string());
+    // }
 
     // TODO It would be nice to verify the signature here, but
     //      given the amount of information available, it's not
